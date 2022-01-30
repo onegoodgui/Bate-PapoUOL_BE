@@ -248,17 +248,26 @@ server.post('/status', async (req, res) => {
 
 server.delete('/messages/:userId', async (req, res) => {
 
-    // const userId = req.params.userId;
+    const userId = req.params.userId;
     const userName = req.headers.user;
     try{
         mongoClient.connect();
         db = mongoClient.db('Bate-PapoUOL');
-        const messagesCollection = db.collection('messages-UOL');
-        let messages = await messagesCollection.find({});
+        const messagesCollection = db.collection('messages_UOL');
+        let messages = await messagesCollection.find({}).toArray();
         console.log(messages);
 
-        let deletedMessage = await messagesCollection.deleteOne()
+        let deletedMessage = await messagesCollection.deleteOne({"_id": ObjectId(userId)});
+        if(deletedMessage.deletedCount === 0){
+            res.status(404).send('Mensagem não encontrada');
+            mongoClient.close();
+            return
+        }
 
+        console.log(deletedMessage)
+        mongoClient.close();
+        res.status(201).send('Mensagem deletada');
+        return
     }
     catch(error){
         res.status(500).send(error);
