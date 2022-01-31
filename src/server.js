@@ -246,18 +246,17 @@ server.post('/status', async (req, res) => {
     }
 })
 
-server.delete('/messages/:userId', async (req, res) => {
+server.delete('/messages/:msgId', async (req, res) => {
 
-    const userId = req.params.userId;
-    const userName = req.headers.user;
+    const msgId = req.params.msgId;
     try{
-        mongoClient.connect();
+        await mongoClient.connect();
         db = mongoClient.db('Bate-PapoUOL');
         const messagesCollection = db.collection('messages_UOL');
         let messages = await messagesCollection.find({}).toArray();
         console.log(messages);
 
-        let deletedMessage = await messagesCollection.deleteOne({"_id": ObjectId(userId)});
+        let deletedMessage = await messagesCollection.deleteOne({"_id": ObjectId(msgId)});
         if(deletedMessage.deletedCount === 0){
             res.status(404).send('Mensagem não encontrada');
             mongoClient.close();
@@ -268,6 +267,63 @@ server.delete('/messages/:userId', async (req, res) => {
         mongoClient.close();
         res.status(201).send('Mensagem deletada');
         return
+    }
+    catch(error){
+        res.status(500).send(error);
+        mongoClient.close()
+    }
+})
+
+server.put('/messages/:msgId', async (req, res) => {
+
+    const msgId = req.params.msgId;
+    const message = req.body;
+    message.from = req.headers.user;
+
+    const validation = messageSchema.validate(message, { abortEarly: true });
+
+    let time = Date.now();
+    time = dayjs(time).format('HH:mm:ss');
+    console.log(time);
+
+    message.time = time;
+
+    if (validation.error) {
+        console.log(validation.error.details);
+        res.status(422).send('Item/itens do objeto com conteúdo inválido');
+        return
+    }
+
+    try{
+       await mongoClient.connect();
+       db = mongoClient.db('Bate-PapoUOL');
+       const messagesCollection = db.collection('messages_UOL');
+
+       let messagesArray = await messagesCollection.find({}).toArray();
+       console.log(messagesArray);
+
+       const selectedMessage = await messagesCollection.find({"_id": ObjectId(msgId)}).toArray();
+       console.log(selectedMessage[0].from);
+
+        if(selectedMessage[0].length === 0){
+            res.status(404).send('Nenhuma mensagem encontrada com este ID');
+            mongoClient.close();
+            return
+        }
+
+       if(selectedMessage[0].from !== message.from){
+            res.status(401).send('Nome de usuário referido na mensagem não está de acordo com o do banco de dados');
+            mongoClient.close();
+            return
+       }
+
+       let update = await messagesCollection.updateOne({ _id: ObjectId(msgId) }, { $set: message });
+       console.log(update);
+
+       res.status(201).send('Ok!');
+       mongoClient.close();
+       return
+
     }
     catch(error){
         res.status(500).send(error);
