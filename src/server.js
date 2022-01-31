@@ -6,7 +6,6 @@ import dotenv from 'dotenv';
 import joi from 'joi';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone.js';
-import {strict as assert} from 'assert'
 import {stripHtml} from 'string-strip-html'
 
 dayjs.extend(timezone);
@@ -170,17 +169,15 @@ server.post('/messages', async (req, res) => {
 
         const messagesArray = await messagesCollection.find({}).toArray();
         console.log(messagesArray);
-        let reversedMessagesArray = [...messagesArray].reverse();
-        console.log(reversedMessagesArray);
+
+        res.status(201).send(messagesArray);
+        mongoClient.close();
         
     }
     catch(error){
         res.status(500).send(error);
         mongoClient.close();
     }
-    
-    res.status(201).send('Ok');
-    mongoClient.close();
 
 })
 
@@ -203,8 +200,9 @@ server.get('/messages', async (req, res) => {
             {to: {$in: [user, 'Todos']}}
         ]}).sort({_id:-1}).limit(limit).toArray();
 
-        console.log(messagesArray);
-        res.status(201).send('ok!')
+        let reversedMessages = [...messagesArray].reverse();
+
+        res.status(201).send(reversedMessages)
         mongoClient.close();
     }
     catch(error){
